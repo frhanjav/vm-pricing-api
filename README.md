@@ -1,5 +1,7 @@
 # Virtual Machine Finder
 
+Designed to aggregate, store, and display virtual machine pricing data from multiple cloud providers. The application automatically keeps its pricing data up-to-date with a background scheduler and provides a powerful, filterable interface for users to find and compare virtual machine instances.
+
 ## To Run Locally
 
 ### Modify the .env files
