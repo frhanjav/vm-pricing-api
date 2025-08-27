@@ -1,0 +1,123 @@
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+@layer base {
+  :root {
+    /* Professional cloud interface colors */
+    --background: 0 0% 99%;
+    --foreground: 222 47% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 15%;
+
+    /* Professional blue primary palette */
+    --primary: 213 94% 46%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 213 94% 52%;
+    --primary-light: 213 100% 96%;
+
+    /* Clean secondary colors */
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 222 47% 25%;
+    --secondary-hover: 210 20% 92%;
+
+    /* Muted backgrounds and text */
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Subtle accent colors */
+    --accent: 213 100% 96%;
+    --accent-foreground: 213 94% 46%;
+
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Refined borders and inputs */
+    --border: 214 32% 88%;
+    --input: 214 32% 91%;
+    --ring: 213 94% 46%;
+
+    --radius: 0.75rem;
+
+    /* Professional gradients and effects */
+    --gradient-header: linear-gradient(135deg, 213 100% 97%, 213 94% 94%);
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(var(--primary)),
+      hsl(213 94% 52%)
+    );
+    --shadow-card: 0 2px 8px -2px hsl(213 20% 80% / 0.15);
+    --shadow-hover: 0 4px 12px -4px hsl(213 20% 70% / 0.25);
+
+    /* Professional spacing */
+    --header-height: 4rem;
+    --content-max-width: 1280px;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
