@@ -1,77 +1,108 @@
-import pandas as pd
-import aiofiles
-import asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import insert
+from app.api.schemas import VMInstance as VMInstanceSchema
+from sqlalchemy import select, func, distinct
+from app import models
 from typing import List, Optional
-from app.api.schemas import VMInstance
-from app.core.config import settings
-import os
-from datetime import datetime
-from io import StringIO
 
-class DataManager:
-    def __init__(self, file_path: str):
-        self.file_path = file_path
-        self.df: Optional[pd.DataFrame] = None
-        self._lock = asyncio.Lock()
-        self._ensure_file_exists()
+async def get_instances(
+    db: AsyncSession,
+    providers: Optional[List[str]] = None,
+    regions: Optional[List[str]] = None,
+    instance_families: Optional[List[str]] = None,
+    storage_types: Optional[List[str]] = None,
+    min_vcpus: Optional[int] = None,
+    min_memory: Optional[float] = None,
+    min_storage: Optional[int] = None,
+    instance_name: Optional[str] = None,
+    sort_by: str = "hourly_cost",
+    sort_order: str = "asc",
+    skip: int = 0,
+    limit: int = 10
+):
+    base_query = select(models.VMInstance)
 
-    def _ensure_file_exists(self):
-        os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
-        if not os.path.exists(self.file_path):
-            # Create empty file with headers
-            pd.DataFrame(columns=[f.name for f in VMInstance.__fields__.values()]).to_csv(self.file_path, index=False)
+    if providers:
+        base_query = base_query.where(models.VMInstance.provider.in_(providers))
+    if regions:
+        base_query = base_query.where(models.VMInstance.region.in_(regions))
+    if instance_families:
+        base_query = base_query.where(models.VMInstance.instance_family.in_(instance_families))
+    if storage_types:
+        base_query = base_query.where(models.VMInstance.storage_type.in_(storage_types))
+    if min_vcpus:
+        base_query = base_query.where(models.VMInstance.vcpus >= min_vcpus)
+    if min_memory:
+        base_query = base_query.where(models.VMInstance.memory_gb >= min_memory)
+    if min_storage:
+        base_query = base_query.where(models.VMInstance.storage_gb >= min_storage)
+    if instance_name:
+        base_query = base_query.where(models.VMInstance.instance_name.ilike(f'%{instance_name}%'))
 
-    async def load_data(self):
-        async with self._lock:
-            try:
-                # Use aiofiles to read the file asynchronously. [2]
-                async with aiofiles.open(self.file_path, mode='r', encoding='utf-8') as f:
-                    content = await f.read()
-                from io import StringIO
-                self.df = pd.read_csv(StringIO(content))
-                # Convert date columns
-                self.df['last_updated'] = pd.to_datetime(self.df['last_updated'])
-            except (FileNotFoundError, pd.errors.EmptyDataError):
-                self.df = pd.DataFrame(columns=[f.name for f in VMInstance.__fields__.values()])
+    count_query = select(func.count()).select_from(base_query.subquery())
+    total = await db.scalar(count_query)
 
-    async def update_provider_data(self, provider: str, new_data: List[VMInstance]):
-        if not new_data:
-            return
+    sort_column = getattr(models.VMInstance, sort_by, models.VMInstance.hourly_cost)
+    if sort_order == "desc":
+        paginated_query = base_query.order_by(sort_column.desc())
+    else:
+        paginated_query = base_query.order_by(sort_column.asc())
+    
+    paginated_query = paginated_query.offset(skip).limit(limit)
+    
+    result = await db.execute(paginated_query)
+    instances = result.scalars().all()
+    
+    return {"total": total, "instances": instances}
 
-        new_df = pd.DataFrame([vars(d) for d in new_data])
-        
-        async with self._lock:
-            if self.df is None:
-                await self.load_data()
+async def get_filter_options(db: AsyncSession):
+    """
+    Gets unique values for filter dropdowns on the frontend.
+    """
 
-            # Remove old data for the provider
-            self.df = self.df[self.df['provider'] != provider]
-            
-            # Add new data
-            self.df = pd.concat([self.df, new_df], ignore_index=True)
-            
-            # Persist to CSV asynchronously
-            buffer = StringIO()
-            self.df.to_csv(buffer, index=False)
-            buffer.seek(0)
-            async with aiofiles.open(self.file_path, mode='w', encoding='utf-8') as f:
-                await f.write(buffer.getvalue())
+    providers_query = select(distinct(models.VMInstance.provider)).order_by(models.VMInstance.provider)
+    providers_res = await db.execute(providers_query)
+    providers = [p for p in providers_res.scalars().all() if p]
 
-    def get_all_instances(self) -> pd.DataFrame:
-        if self.df is None:
-            raise ValueError("Data not loaded. Call load_data() first.")
-        return self.df
+    regions_query = select(distinct(models.VMInstance.region)).order_by(models.VMInstance.region)
+    regions_res = await db.execute(regions_query)
+    regions = [r for r in regions_res.scalars().all() if r]
 
-    def get_last_update_times(self) -> dict:
-        if self.df is None or self.df.empty:
-            return {p: None for p in settings.SUPPORTED_PROVIDERS}
-        
-        last_updates = self.df.groupby('provider')['last_updated'].max().to_dict()
-        # Ensure all supported providers are in the dictionary
-        for p in settings.SUPPORTED_PROVIDERS:
-            if p not in last_updates:
-                last_updates[p] = None
-        return last_updates
+    families_query = select(distinct(models.VMInstance.instance_family)).order_by(models.VMInstance.instance_family)
+    families_res = await db.execute(families_query)
+    instance_families = [f for f in families_res.scalars().all() if f]
 
+    storage_types_query = select(distinct(models.VMInstance.storage_type)).order_by(models.VMInstance.storage_type)
+    storage_types_res = await db.execute(storage_types_query)
+    storage_types = [s for s in storage_types_res.scalars().all() if s]
 
-data_manager = DataManager(settings.DATA_FILE_PATH)
+    return {
+        "providers": providers,
+        "regions": regions,
+        "instance_families": instance_families,
+        "storage_types": storage_types
+    }
+
+async def update_provider_data(db: AsyncSession, provider: str, instances_data: List[VMInstanceSchema]):
+    """
+    Updates the database with a fresh list of instances for a specific provider.
+    This function performs an "upsert" (insert or update).
+    """
+    if not instances_data:
+        return 0
+
+    delete_statement = models.VMInstance.__table__.delete().where(
+        models.VMInstance.provider == provider
+    )
+    await db.execute(delete_statement)
+
+    new_instances = [
+        instance.model_dump() for instance in instances_data
+    ]
+    
+    insert_statement = insert(models.VMInstance).values(new_instances)
+    
+    result = await db.execute(insert_statement)
+    await db.commit()
+    
+    return len(new_instances)

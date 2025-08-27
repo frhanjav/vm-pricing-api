@@ -24,10 +24,8 @@ async def main():
 
         print(f"Successfully fetched {len(instances)} instance types from AWS.")
         
-        # Convert to a pandas DataFrame
         df = pd.DataFrame([vars(d) for d in instances])
         
-        # Save to a CSV file
         output_file = "data/vm_pricing.csv"
         df.to_csv(output_file, index=False)
         print(f"Data successfully saved to {output_file}")

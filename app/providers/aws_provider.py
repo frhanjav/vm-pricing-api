@@ -1,6 +1,6 @@
 import boto3
 import json
-from typing import List, Dict, Any
+from typing import List
 from datetime import datetime
 from app.api.schemas import VMInstance
 from .base_provider import BaseProvider
@@ -14,10 +14,6 @@ class AWSProvider(BaseProvider):
     def __init__(self):
         super().__init__("AWS")
         
-        # boto3 will automatically look for credentials in this order:
-        # 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-        # 2. The ~/.aws/credentials file
-        # This setup prioritizes your .env file thanks to load_dotenv()
         self.pricing_client = boto3.client(
             "pricing", 
             region_name="us-east-1",
@@ -46,7 +42,6 @@ class AWSProvider(BaseProvider):
             for product_json in page["PriceList"]:
                 product = json.loads(product_json)
                 
-                # OnDemand pricing details
                 on_demand_terms = product.get("terms", {}).get("OnDemand")
                 if not on_demand_terms:
                     continue
@@ -79,7 +74,6 @@ class AWSProvider(BaseProvider):
                     )
                     instances.append(instance)
                 except (ValueError, TypeError) as e:
-                    # Skip if data is malformed
                     continue
         
         return instances
