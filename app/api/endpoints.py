@@ -21,6 +21,7 @@ async def read_instances(
     regions: Optional[List[str]] = Query(None),
     min_vcpus: Optional[int] = Query(None),
     min_memory: Optional[float] = Query(None),
+    max_monthly_cost: Optional[float] = Query(None),
     instance_families: Optional[List[str]] = Query(None),
     storage_types: Optional[List[str]] = Query(None),
     min_storage: Optional[int] = Query(None),
@@ -43,6 +44,7 @@ async def read_instances(
         storage_types=storage_types,
         min_vcpus=min_vcpus,
         min_memory=min_memory,
+        max_monthly_cost=max_monthly_cost,
         min_storage=min_storage,
         instance_name=instance_name,
         sort_by=sort_by,
@@ -69,8 +71,6 @@ async def get_regions(provider: Optional[str] = None, db: AsyncSession = Depends
     
     result = await db.execute(query)
     regions = result.scalars().all()
-    if not regions and provider:
-         raise HTTPException(status_code=404, detail=f"Provider '{provider}' not found or has no data.")
     return regions
 
 @router.get("/metrics", response_model=schemas.Metrics)

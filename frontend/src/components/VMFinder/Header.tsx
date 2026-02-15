@@ -13,7 +13,7 @@ export const Header = () => {
               Virtual Machine Finder
             </h1>
             <p className="text-sm text-muted-foreground">
-              Compare cloud VM instances across providers
+              Compare cloud and bare metal instances across providers
             </p>
           </div>
         </div>

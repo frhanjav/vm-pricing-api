@@ -18,6 +18,7 @@ import { FilterOptions, VMInstance } from "@/types";
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 const ITEMS_PER_PAGE = 25;
 const REQUEST_TIMEOUT_MS = 6000;
+const HETZNER_BARE_METAL_PROVIDER = "Hetzner Bare Metal";
 let forceFallbackMode = false;
 
 const apiClient = axios.create({
@@ -126,6 +127,21 @@ const fetchFilterOptions = async (): Promise<FilterOptions> => {
   } catch {
     forceFallbackMode = true;
     return fallbackFilterOptions;
+  }
+};
+
+const fetchRegionsByProvider = async (provider: string): Promise<string[]> => {
+  if (!API_URL) {
+    return [];
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.append("provider", provider);
+    const { data } = await apiClient.get(`${API_URL}/regions`, { params });
+    return (Array.isArray(data) ? data : []).filter(Boolean).sort();
+  } catch {
+    return [];
   }
 };
 
@@ -258,6 +274,13 @@ const Index = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const cloudProviders = (filterOptionsData?.providers || []).filter(
+    (provider) => provider !== HETZNER_BARE_METAL_PROVIDER,
+  );
+  if (!cloudProviders.includes("Hetzner Cloud")) {
+    cloudProviders.push("Hetzner Cloud");
+    cloudProviders.sort();
+  }
   const instances = instancesData?.instances || [];
   const totalResults = instancesData?.total || 0;
   const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
@@ -269,7 +292,7 @@ const Index = () => {
       <main className="container mx-auto max-w-content px-6 py-8 space-y-8">
         <FilterSection
           onSearch={handleSearch}
-          providers={filterOptionsData?.providers || []}
+          providers={cloudProviders}
           regions={filterOptionsData?.regions || []}
           isLoading={isLoadingFilters}
         />

@@ -14,6 +14,7 @@ async def get_instances(
     min_vcpus: Optional[int] = None,
     min_memory: Optional[float] = None,
     min_storage: Optional[int] = None,
+    max_monthly_cost: Optional[float] = None,
     instance_name: Optional[str] = None,
     sort_by: str = "hourly_cost",
     sort_order: str = "asc",
@@ -36,6 +37,8 @@ async def get_instances(
         base_query = base_query.where(models.VMInstance.memory_gb >= min_memory)
     if min_storage:
         base_query = base_query.where(models.VMInstance.storage_gb >= min_storage)
+    if max_monthly_cost is not None:
+        base_query = base_query.where(models.VMInstance.monthly_cost <= max_monthly_cost)
     if instance_name:
         base_query = base_query.where(models.VMInstance.instance_name.ilike(f'%{instance_name}%'))
 

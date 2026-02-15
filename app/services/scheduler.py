@@ -1,10 +1,13 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.providers.aws_provider import AWSProvider
+from app.providers.hetzner_cloud_provider import HetznerCloudProvider
+from app.providers.hetzner_bare_metal_provider import HetznerBareMetalProvider
 # from app.providers.gcp_provider import GCPProvider
 from app.data.data_manager import update_provider_data
 from app.database import SessionLocal
 from app.core.config import settings
 import logging
+from datetime import datetime
 
 logging.basicConfig()
 logging.getLogger('apscheduler').setLevel(logging.INFO)
@@ -37,7 +40,28 @@ def start_scheduler():
         'interval',
         hours=settings.REFRESH_INTERVAL_AWS,
         args=[aws_provider],
-        id='aws_refresh_job'
+        id='aws_refresh_job',
+        next_run_time=datetime.now()
+    )
+
+    hetzner_cloud_provider = HetznerCloudProvider()
+    scheduler.add_job(
+        refresh_provider_data,
+        'interval',
+        hours=settings.REFRESH_INTERVAL_HETZNER_CLOUD,
+        args=[hetzner_cloud_provider],
+        id='hetzner_cloud_refresh_job',
+        next_run_time=datetime.now()
+    )
+
+    hetzner_bare_metal_provider = HetznerBareMetalProvider()
+    scheduler.add_job(
+        refresh_provider_data,
+        'interval',
+        hours=settings.REFRESH_INTERVAL_HETZNER_BARE_METAL,
+        args=[hetzner_bare_metal_provider],
+        id='hetzner_bare_metal_refresh_job',
+        next_run_time=datetime.now()
     )
     
     # gcp_provider = GCPProvider()

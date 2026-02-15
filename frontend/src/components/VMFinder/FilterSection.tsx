@@ -21,11 +21,11 @@ interface FilterSectionProps {
   isLoading: boolean;
 }
 
-export const FilterSection: React.FC<FilterSectionProps> = ({ 
-  onSearch, 
-  providers, 
+export const FilterSection: React.FC<FilterSectionProps> = ({
+  onSearch,
+  providers,
   regions,
-  isLoading
+  isLoading,
 }) => {
   const [instanceName, setInstanceName] = useState("");
   const [minVCPUs, setMinVCPUs] = useState("");
@@ -34,18 +34,18 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
   const [selectedProviders, setSelectedProviders] = useState<string[]>([]);
 
   const handleRegionToggle = (region: string) => {
-    setSelectedRegions(prev => 
-      prev.includes(region) 
-        ? prev.filter(r => r !== region)
-        : [...prev, region]
+    setSelectedRegions((prev) =>
+      prev.includes(region)
+        ? prev.filter((r) => r !== region)
+        : [...prev, region],
     );
   };
 
   const handleProviderToggle = (provider: string) => {
-    setSelectedProviders(prev => 
-      prev.includes(provider) 
-        ? prev.filter(p => p !== provider)
-        : [...prev, provider]
+    setSelectedProviders((prev) =>
+      prev.includes(provider)
+        ? prev.filter((p) => p !== provider)
+        : [...prev, provider],
     );
   };
 
@@ -59,6 +59,21 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
     });
   };
 
+  const handleReset = () => {
+    setInstanceName("");
+    setMinVCPUs("");
+    setMinMemory("");
+    setSelectedRegions([]);
+    setSelectedProviders([]);
+    onSearch({
+      instanceName: "",
+      minVCPUs: "",
+      minMemory: "",
+      regions: [],
+      providers: [],
+    });
+  };
+
   return (
     <Card className="shadow-card">
       <fieldset disabled={isLoading} className="group">
@@ -66,7 +81,9 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
           <CardTitle className="flex items-center gap-2 text-foreground">
             <Search className="h-5 w-5 text-primary" />
             Search & Filter
-            {isLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+            {isLoading && (
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6 group-disabled:opacity-50">
@@ -116,7 +133,10 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
                       checked={selectedRegions.includes(region)}
                       onCheckedChange={() => handleRegionToggle(region)}
                     />
-                    <Label htmlFor={`region-${region}`} className="text-sm cursor-pointer">
+                    <Label
+                      htmlFor={`region-${region}`}
+                      className="text-sm cursor-pointer"
+                    >
                       {region}
                     </Label>
                   </div>
@@ -134,7 +154,10 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
                       checked={selectedProviders.includes(provider)}
                       onCheckedChange={() => handleProviderToggle(provider)}
                     />
-                    <Label htmlFor={`provider-${provider}`} className="text-sm cursor-pointer">
+                    <Label
+                      htmlFor={`provider-${provider}`}
+                      className="text-sm cursor-pointer"
+                    >
                       {provider}
                     </Label>
                   </div>
@@ -143,13 +166,22 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
             </div>
           </div>
 
-          <Button 
-            onClick={handleSearch}
-            className="w-full md:w-auto bg-gradient-primary hover:shadow-hover transition-all duration-200"
-          >
-            <Search className="h-4 w-4 mr-2" />
-            Search
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={handleSearch}
+              className="w-full md:w-auto bg-gradient-primary hover:shadow-hover transition-all duration-200"
+            >
+              <Search className="h-4 w-4 mr-2" />
+              Search
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleReset}
+              className="w-full md:w-auto"
+            >
+              Reset
+            </Button>
+          </div>
         </CardContent>
       </fieldset>
     </Card>
