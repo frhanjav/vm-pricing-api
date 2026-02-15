@@ -131,6 +131,68 @@ const fetchFilterOptions = async (): Promise<FilterOptions> => {
 
 type InstancesQueryKey = [string, FilterState, number];
 
+const buildFallbackInstancesResponse = (
+  filters: FilterState,
+  page: number,
+): InstancesResponse => {
+  const filtered = fallbackInstances
+    .filter((item) => {
+      if (
+        filters.instanceName &&
+        !item.instance_name
+          .toLowerCase()
+          .includes(filters.instanceName.toLowerCase())
+      ) {
+        return false;
+      }
+
+      if (filters.minVCPUs && (item.vcpus ?? 0) < Number(filters.minVCPUs)) {
+        return false;
+      }
+
+      if (
+        filters.minMemory &&
+        (item.memory_gb ?? 0) < Number(filters.minMemory)
+      ) {
+        return false;
+      }
+
+      if (
+        filters.providers.length > 0 &&
+        !filters.providers.includes(item.provider)
+      ) {
+        return false;
+      }
+
+      if (
+        filters.regions.length > 0 &&
+        !filters.regions.includes(item.region)
+      ) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      const aHourly = a.hourly_cost ?? Number.POSITIVE_INFINITY;
+      const bHourly = b.hourly_cost ?? Number.POSITIVE_INFINITY;
+
+      if (aHourly !== bHourly) {
+        return aHourly - bHourly;
+      }
+
+      return a.instance_name.localeCompare(b.instance_name);
+    });
+
+  const start = (page - 1) * ITEMS_PER_PAGE;
+  const end = start + ITEMS_PER_PAGE;
+
+  return {
+    total: filtered.length,
+    instances: filtered.slice(start, end),
+  };
+};
+
 const fetchInstances = async ({
   queryKey,
 }: QueryFunctionContext<InstancesQueryKey>): Promise<InstancesResponse> => {
@@ -148,51 +210,7 @@ const fetchInstances = async ({
   filters.regions.forEach((r) => params.append("regions", r));
 
   if (!API_URL || forceFallbackMode) {
-    const filtered = fallbackInstances.filter((item) => {
-      if (
-        filters.instanceName &&
-        !item.instance_name
-          .toLowerCase()
-          .includes(filters.instanceName.toLowerCase())
-      ) {
-        return false;
-      }
-
-      if (filters.minVCPUs && (item.vcpus ?? 0) < Number(filters.minVCPUs)) {
-        return false;
-      }
-
-      if (
-        filters.minMemory &&
-        (item.memory_gb ?? 0) < Number(filters.minMemory)
-      ) {
-        return false;
-      }
-
-      if (
-        filters.providers.length > 0 &&
-        !filters.providers.includes(item.provider)
-      ) {
-        return false;
-      }
-
-      if (
-        filters.regions.length > 0 &&
-        !filters.regions.includes(item.region)
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-
-    const start = (page - 1) * ITEMS_PER_PAGE;
-    const end = start + ITEMS_PER_PAGE;
-
-    return {
-      total: filtered.length,
-      instances: filtered.slice(start, end),
-    };
+    return buildFallbackInstancesResponse(filters, page);
   }
 
   try {
@@ -200,51 +218,7 @@ const fetchInstances = async ({
     return data;
   } catch {
     forceFallbackMode = true;
-    const filtered = fallbackInstances.filter((item) => {
-      if (
-        filters.instanceName &&
-        !item.instance_name
-          .toLowerCase()
-          .includes(filters.instanceName.toLowerCase())
-      ) {
-        return false;
-      }
-
-      if (filters.minVCPUs && (item.vcpus ?? 0) < Number(filters.minVCPUs)) {
-        return false;
-      }
-
-      if (
-        filters.minMemory &&
-        (item.memory_gb ?? 0) < Number(filters.minMemory)
-      ) {
-        return false;
-      }
-
-      if (
-        filters.providers.length > 0 &&
-        !filters.providers.includes(item.provider)
-      ) {
-        return false;
-      }
-
-      if (
-        filters.regions.length > 0 &&
-        !filters.regions.includes(item.region)
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-
-    const start = (page - 1) * ITEMS_PER_PAGE;
-    const end = start + ITEMS_PER_PAGE;
-
-    return {
-      total: filtered.length,
-      instances: filtered.slice(start, end),
-    };
+    return buildFallbackInstancesResponse(filters, page);
   }
 };
 
