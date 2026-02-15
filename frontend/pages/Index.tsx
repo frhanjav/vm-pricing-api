@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-query";
 import axios from "axios";
 import { useState } from "react";
+import fallbackCsvRaw from "../../data/vm_pricing.csv?raw";
 
 import {
   FilterSection,
@@ -16,15 +17,116 @@ import { FilterOptions, VMInstance } from "@/types";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 const ITEMS_PER_PAGE = 25;
+const REQUEST_TIMEOUT_MS = 6000;
+let forceFallbackMode = false;
+
+const apiClient = axios.create({
+  timeout: REQUEST_TIMEOUT_MS,
+});
 
 interface InstancesResponse {
   total: number;
   instances: VMInstance[];
 }
 
+const parseCsvLine = (line: string): string[] => {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      result.push(current);
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  result.push(current);
+  return result;
+};
+
+const toNumberOrNull = (value: string | undefined): number | null => {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const fallbackInstances: VMInstance[] = fallbackCsvRaw
+  .split(/\r?\n/)
+  .slice(1)
+  .filter((line) => line.trim().length > 0)
+  .map((line, index) => {
+    const row = parseCsvLine(line);
+
+    return {
+      id: index + 1,
+      instance_name: row[0] ?? "",
+      provider: row[1] ?? "",
+      region: row[2] ?? "",
+      vcpus: toNumberOrNull(row[3]),
+      memory_gb: toNumberOrNull(row[4]),
+      storage_gb: toNumberOrNull(row[5]),
+      storage_type: row[6] || null,
+      hourly_cost: toNumberOrNull(row[7]),
+      monthly_cost: toNumberOrNull(row[8]),
+      spot_price: toNumberOrNull(row[9]),
+      currency: row[10] ?? "USD",
+      instance_family: row[11] || null,
+      network_performance: row[12] || null,
+      last_updated: row[13] ?? new Date().toISOString(),
+    };
+  });
+
+const fallbackFilterOptions: FilterOptions = {
+  providers: Array.from(
+    new Set(fallbackInstances.map((item) => item.provider)),
+  ).sort(),
+  regions: Array.from(
+    new Set(fallbackInstances.map((item) => item.region)),
+  ).sort(),
+  instance_families: Array.from(
+    new Set(
+      fallbackInstances
+        .map((item) => item.instance_family)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ).sort(),
+  storage_types: Array.from(
+    new Set(
+      fallbackInstances
+        .map((item) => item.storage_type)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ).sort(),
+};
+
 const fetchFilterOptions = async (): Promise<FilterOptions> => {
-  const { data } = await axios.get(`${API_URL}/filters/options`);
-  return data;
+  if (!API_URL || forceFallbackMode) {
+    return fallbackFilterOptions;
+  }
+
+  try {
+    const { data } = await apiClient.get(`${API_URL}/filters/options`);
+    return data;
+  } catch {
+    forceFallbackMode = true;
+    return fallbackFilterOptions;
+  }
 };
 
 type InstancesQueryKey = [string, FilterState, number];
@@ -45,8 +147,105 @@ const fetchInstances = async ({
   filters.providers.forEach((p) => params.append("providers", p));
   filters.regions.forEach((r) => params.append("regions", r));
 
-  const { data } = await axios.get(`${API_URL}/instances`, { params });
-  return data;
+  if (!API_URL || forceFallbackMode) {
+    const filtered = fallbackInstances.filter((item) => {
+      if (
+        filters.instanceName &&
+        !item.instance_name
+          .toLowerCase()
+          .includes(filters.instanceName.toLowerCase())
+      ) {
+        return false;
+      }
+
+      if (filters.minVCPUs && (item.vcpus ?? 0) < Number(filters.minVCPUs)) {
+        return false;
+      }
+
+      if (
+        filters.minMemory &&
+        (item.memory_gb ?? 0) < Number(filters.minMemory)
+      ) {
+        return false;
+      }
+
+      if (
+        filters.providers.length > 0 &&
+        !filters.providers.includes(item.provider)
+      ) {
+        return false;
+      }
+
+      if (
+        filters.regions.length > 0 &&
+        !filters.regions.includes(item.region)
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const start = (page - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+
+    return {
+      total: filtered.length,
+      instances: filtered.slice(start, end),
+    };
+  }
+
+  try {
+    const { data } = await apiClient.get(`${API_URL}/instances`, { params });
+    return data;
+  } catch {
+    forceFallbackMode = true;
+    const filtered = fallbackInstances.filter((item) => {
+      if (
+        filters.instanceName &&
+        !item.instance_name
+          .toLowerCase()
+          .includes(filters.instanceName.toLowerCase())
+      ) {
+        return false;
+      }
+
+      if (filters.minVCPUs && (item.vcpus ?? 0) < Number(filters.minVCPUs)) {
+        return false;
+      }
+
+      if (
+        filters.minMemory &&
+        (item.memory_gb ?? 0) < Number(filters.minMemory)
+      ) {
+        return false;
+      }
+
+      if (
+        filters.providers.length > 0 &&
+        !filters.providers.includes(item.provider)
+      ) {
+        return false;
+      }
+
+      if (
+        filters.regions.length > 0 &&
+        !filters.regions.includes(item.region)
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const start = (page - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+
+    return {
+      total: filtered.length,
+      instances: filtered.slice(start, end),
+    };
+  }
 };
 
 const Index = () => {
